@@ -1,0 +1,19 @@
+# Node
+node_modules/
+.next/
+.env.local
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+dist/
+
+# Modal
+.modal/
+
+# General
+.DS_Store
+*.log
