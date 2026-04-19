@@ -18,6 +18,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  jobs          Job[]
 
   @@unique([email])
   @@map("user")
@@ -69,4 +70,35 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Job {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status        JobStatus @default(PENDING)
+  inputType     String
+  fileName      String
+  r2Key         String
+  r2Url         String?
+  activationMap Json?
+  brainRegions  Json?
+  viralityScore Float?
+  note          String?
+  errorMessage  String?
+  rawOutput     Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  completedAt   DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@map("job")
 }

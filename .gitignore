@@ -8,8 +8,13 @@ node_modules/
 __pycache__/
 *.pyc
 .venv/
+env/
+ml/env/
 *.egg-info/
 dist/
+
+# nilearn cache (downloaded atlases)
+nilearn_data/
 
 # Modal
 .modal/

@@ -1,0 +1,12 @@
+modal
+fastapi
+pydantic
+huggingface_hub
+torch
+numpy
+nibabel
+nilearn
+moviepy
+httpx
+python-dotenv
+pillow
