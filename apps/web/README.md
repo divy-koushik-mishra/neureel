@@ -1,350 +1,303 @@
-# Neureel
+# Neureel — Web app
 
-> Neuroscience-backed content intelligence for brands and marketing teams.
+Next.js 16 app that takes user uploads, ships them to Cloudflare R2, triggers
+TRIBE v2 inference on Modal, and renders the results — virality score, 3D
+brain surface with per-vertex activation, Destrieux region breakdown, and a
+POC "Playground" (temporal dynamics, peak moments, raw `.npy` download).
 
-Neureel uses Meta's TRIBE v2 — a trimodal brain encoding AI model — to predict which brain regions get activated when a person watches a video, image, or reel. It translates raw neuroscience output into actionable virality scores and brain activation maps, helping brands reverse-engineer what makes content neurologically compelling.
-
----
-
-## Table of Contents
-
-- [Product Overview](#product-overview)
-- [How It Works](#how-it-works)
-- [The AI Engine — TRIBE v2](#the-ai-engine--tribe-v2)
-- [Virality Score](#virality-score)
-- [Architecture](#architecture)
-- [Tech Stack](#tech-stack)
-- [Data Flow](#data-flow)
-- [Environment Variables](#environment-variables)
-- [Getting Started](#getting-started)
-- [Deployment](#deployment)
-- [Key Design Decisions](#key-design-decisions)
-- [Current Unknowns](#current-unknowns)
-- [Roadmap](#roadmap)
+Part of the [`neureel`](../../README.md) monorepo. Paired with
+[`../../ml/`](../../ml/README.md) (the Modal GPU service) and
+[`../../docs/atlas.md`](../../docs/atlas.md) (brain mesh bake pipeline).
 
 ---
 
-## Product Overview
+## Stack
 
-**Target users:** Brand managers and digital marketing teams at mid-size companies.
-
-**Core problem:** Brands spend heavily on content creation and distribution but currently rely on gut instinct or lagging metrics (views, likes) to judge content quality. There is no pre-publish signal for neurological engagement.
-
-**Core solution:** Upload any video, image, or reel → Neureel runs it through TRIBE v2 → returns a brain activation map showing which cognitive regions fired → computes a virality score (0–100) → gives plain-English recommendations.
-
-**Primary use case — Virality Reverse Engineering:**
-1. Feed in known viral reels (e.g. top-performing brand ads)
-2. Get their brain activation fingerprint
-3. Use that fingerprint as a blueprint
-4. Engineer new content to match or exceed the neurological profile
-
-**Validation target:** 5 brand managers shown a working demo → 2–3 willing to pay ₹5,000–15,000/month → proceed to build.
-
----
-
-## How It Works
-
-```
-User uploads video/image/reel
-          │
-          ▼
-File stored in Cloudflare R2
-          │
-          ▼
-Job created in NeonDB (status: PENDING)
-          │
-          ▼
-FastAPI on Modal triggered (async)
-          │
-          ▼
-TRIBE v2 runs inference on A10G GPU
-(~1–3 minutes)
-          │
-          ▼
-Activation map returned via webhook
-          │
-          ▼
-Brain regions parsed + virality score computed
-          │
-          ▼
-Job updated in DB (status: COMPLETED)
-          │
-          ▼
-Frontend renders 3D brain visualization + score
-```
-
----
-
-## The AI Engine — TRIBE v2
-
-**Full name:** Trimodal Brain Encoder v2
-**Source:** Meta FAIR (Fundamental AI Research)
-**License:** CC BY-NC (open source, non-commercial)
-**HuggingFace:** `facebook/tribev2`
-**Paper:** [A foundation model of vision, audition, and language for in-silico neuroscience](https://ai.meta.com/research/publications/a-foundation-model-of-vision-audition-and-language-for-in-silico-neuroscience/)
-
-### What TRIBE v2 Does
-
-TRIBE v2 is a foundation model trained on 1,000+ hours of fMRI brain recordings from 720 healthy volunteers exposed to real-world media — films, podcasts, videos, and text. Given any new stimulus (video, audio, image, text), it predicts the fMRI activation response across the entire cortical surface at high resolution.
-
-### Key Capabilities
-
-- **Trimodal:** Processes video, audio, and language simultaneously through a unified transformer architecture
-- **High resolution:** Predicts activation across ~70,000 brain voxels (70x improvement over prior models)
-- **Zero-shot:** Works on new individuals, new languages, new content — no retraining needed
-- **In-silico experimentation:** Replaces expensive physical fMRI studies for hypothesis testing
-
-### Internal Architecture (for AI agents)
-
-TRIBE v2 uses three specialized encoders fused by a transformer:
-
-| Modality | Encoder | What it captures |
-|---|---|---|
-| Video | V-JEPA2 | Visual features, motion, scene composition |
-| Audio | Wav2Vec-BERT | Tone, speech, music, rhythm |
-| Text | LLaMA 3.2 (3B) | Semantic meaning, narrative, language |
-
-Output: A tensor of shape `[n_voxels]` representing predicted BOLD (blood-oxygen-level-dependent) fMRI signal intensity per voxel on the cortical surface.
-
-### Inference Notes
-
-- Requires CUDA GPU with 12GB+ VRAM minimum (A10G recommended)
-- Cannot run on Mac (no CUDA) or consumer GPUs under 8GB VRAM
-- Cold start on Modal: ~30s (model weights cached in Modal Volume)
-- Inference time per video: ~1–3 minutes depending on length
-- Model weights must be downloaded from HuggingFace (`facebook/tribev2`) — gated access required for the LLaMA 3.2 text encoder component
-
----
-
-## Virality Score
-
-Raw TRIBE v2 output (voxel activation values) is mapped to named brain regions using a standard neurological atlas (Destrieux or DK40). Named regions are then weighted by their correlation with content shareability and engagement:
-
-```
-Score (0–100) = weighted sum of regional activation values
-
-Weights:
-  Nucleus Accumbens   25%  — reward / dopamine response
-  Amygdala            20%  — emotional arousal
-  Visual Cortex       20%  — visual attention capture
-  Prefrontal Cortex   15%  — decision making / intent
-  Insula              10%  — social emotion / empathy
-  Broca's Area        10%  — language processing / narrative
-```
-
-These weights are the core proprietary layer of Neureel — they will be refined over time by comparing model output against real-world virality data (view counts, share rates, engagement rates of known viral content).
-
-Output labels derived from score:
-
-| Score | Label |
+| Concern | Choice |
 |---|---|
-| 80–100 | High viral potential |
-| 60–79 | Strong engagement likely |
-| 40–59 | Moderate — needs hook improvement |
-| 20–39 | Low neurological engagement |
-| 0–19 | Unlikely to retain attention |
+| Framework | Next.js **16** (App Router, React 19.2, Turbopack dev) |
+| API layer | tRPC v11 (`@trpc/tanstack-react-query`) |
+| Auth | BetterAuth 1.6 with Google OAuth |
+| ORM | Prisma 7 (custom generated client path `src/generated/prisma/`) |
+| DB | Neon Postgres (pooled for runtime, direct for migrations) |
+| Object storage | Cloudflare R2 (S3 API via `@aws-sdk/client-s3`) |
+| Styling | Tailwind CSS **v4** (no config file; `@theme inline` in `globals.css`) |
+| 3D brain viewer | React Three Fiber + `three` + hand-baked fsaverage5 mesh |
+| Lint/format | Biome |
+| Package manager | pnpm (workspace) |
+
+Next.js 16 specifics that shape the code:
+- Route `params`, `cookies()`, `headers()` all return Promises — awaited everywhere.
+- `middleware.ts` is renamed to `proxy.ts` (see [`src/proxy.ts`](src/proxy.ts)).
+- `allowedDevOrigins` in [`next.config.ts`](next.config.ts) enables dev-over-tunnel scenarios.
 
 ---
 
-## Architecture
+## Directory tour
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                          FRONTEND                               │
-│                Next.js 14 (App Router) on Vercel                │
-│          Upload UI → Job Status Polling → Brain Viewer          │
-└─────────────────────────────┬───────────────────────────────────┘
-                              │ tRPC over HTTPS
-┌─────────────────────────────▼───────────────────────────────────┐
-│                         WEB API LAYER                           │
-│                    Next.js API Routes (Vercel)                  │
-│                                                                 │
-│   tRPC Routers:                    Plain Route Handlers:        │
-│   - jobs (create, list, getById)   - /api/webhook/inference     │
-│   - upload (R2 presigned URL)        (receives ML results)      │
-│   - results (activation + score)                                │
-└──────────┬──────────────────────────────────┬───────────────────┘
-           │                                  │
-           ▼                                  ▼
-┌──────────────────┐                 ┌─────────────────────┐
-│    NeonDB        │                 │   Cloudflare R2     │
-│   (PostgreSQL)   │                 │   (File Storage)    │
-│                  │                 │                     │
-│  - User          │                 │  - Raw video/image  │
-│  - Job           │                 │    uploads          │
-│  - JobStatus     │                 │  - No egress fees   │
-│  - activationMap │                 │  - 10GB free        │
-│  - brainRegions  │                 └──────────┬──────────┘
-│  - viralityScore │                            │ signed URL
-└──────────────────┘                 ┌──────────▼──────────┐
-                                     │    Modal.com        │
-                                     │                     │
-                                     │  FastAPI endpoint   │
-                                     │  + TRIBE v2 model   │
-                                     │  on A10G GPU        │
-                                     │                     │
-                                     │  Serverless:        │
-                                     │  only runs during   │
-                                     │  active inference   │
-                                     └──────────┬──────────┘
-                                                │ POST webhook
-                                                ▼
-                                     /api/webhook/inference
-                                     (results stored in DB)
+apps/web/
+├── prisma/
+│   ├── schema.prisma          User, Session, Account, Verification, Job, JobStatus
+│   └── migrations/            4 applied migrations
+├── public/atlas/
+│   ├── fsaverage5.bin         Packed mesh: 2× hemispheres, inflated+pial verts,
+│   │                          Destrieux per-vertex label, sulc depth
+│   └── fsaverage5.meta.json   Binary layout + 76 Destrieux label names
+├── scripts/
+│   └── r2-cors.ts             pnpm tsx helper that PUTs a CORS policy on the R2 bucket
+└── src/
+    ├── app/
+    │   ├── page.tsx                            Landing
+    │   ├── layout.tsx                          Root layout
+    │   ├── globals.css                         Tailwind v4 theme + dark palette
+    │   ├── (auth)/sign-in/page.tsx             Google sign-in (server component)
+    │   ├── api/
+    │   │   ├── auth/[...all]/route.ts          BetterAuth handler
+    │   │   ├── auth-start/google/route.ts      Server-side OAuth start (no JS needed)
+    │   │   ├── trpc/[trpc]/route.ts            tRPC fetch handler
+    │   │   └── webhook/inference/route.ts      Modal → Neureel webhook
+    │   └── dashboard/
+    │       ├── layout.tsx                      Auth gate + header
+    │       ├── page.tsx / DashboardClient.tsx  Upload + job list
+    │       ├── UserMenu.tsx                    Sign-out dropdown
+    │       └── results/[jobId]/
+    │           ├── page.tsx                    Async params
+    │           └── ResultsClient.tsx           Polls job, renders score/viewer/playground
+    ├── components/
+    │   ├── BrainMesh.tsx                       R3F mesh viewer (see § 3D viewer)
+    │   ├── BrainViewer.tsx                     Picks 3D or SVG fallback
+    │   ├── BrainViewerFallback.tsx             2D SVG schematic (no-WebGL path)
+    │   ├── BrainRegionsTable.tsx               6-region virality breakdown
+    │   ├── Playground.tsx                      Timeline + heatmap + drilldown + raw data
+    │   ├── Recommendations.tsx                 Derived from top-activated regions
+    │   ├── ViralityScoreCard.tsx               Big number + bucket label
+    │   ├── UploadZone.tsx                      Drag-drop + XHR PUT to R2
+    │   ├── JobCard.tsx / JobStatusBadge.tsx
+    │   └── ui/                                 button, card, badge, progress, skeleton, table, input
+    ├── lib/
+    │   ├── auth.ts                             BetterAuth config (google provider)
+    │   ├── auth-client.ts                      authClient + hooks
+    │   ├── prisma.ts                           Prisma singleton + PrismaPg adapter
+    │   ├── r2.ts                               Presigned PUT/GET helpers
+    │   ├── modal.ts                            Fetches Modal /inference with auth
+    │   ├── scoring.ts                          VIRALITY_WEIGHTS, getViralityLabel, deriveRecommendations
+    │   └── utils.ts                            cn() helper
+    ├── trpc/
+    │   ├── init.ts                             createTRPCContext + protectedProcedure
+    │   ├── client.tsx / server.tsx / query-client.ts
+    │   └── routers/
+    │       ├── _app.ts
+    │       └── jobs.ts                         create / triggerInference / getById / list
+    └── proxy.ts                                Auth gate redirect (Next 16)
 ```
 
 ---
 
-## Tech Stack
+## How it flows
 
-### Web Layer (`apps/web/`)
+```
+1. Browser: sign in via /api/auth-start/google
+   (plain server redirect — no client JS needed for OAuth start)
 
-| Concern | Technology |
-|---|---|
-| Framework | Next.js 14 (App Router, TypeScript) |
-| API | tRPC v11 |
-| Auth | BetterAuth (Google OAuth) |
-| ORM | Prisma |
-| Database | NeonDB (serverless Postgres) |
-| File Storage | Cloudflare R2 |
-| Styling | Tailwind CSS + shadcn/ui |
-| Brain Visualization | Niivue (WebGL, brain-specific viewer) |
-| Deployment | Vercel (free tier) |
+2. Dashboard: drag a file into UploadZone
+   ├─ tRPC jobs.create      → row in Postgres (status PENDING) + R2 presigned PUT
+   ├─ XHR PUT to R2          → file lands in bucket (progress bar)
+   └─ tRPC jobs.triggerInference
+       ├─ signs an R2 GET URL for the file
+       ├─ status → PROCESSING
+       └─ POST ${MODAL_API_URL}/inference with x-webhook-secret
+            body: {job_id, file_url, file_type, webhook_url}
 
-### ML Layer (`ml/`)
+3. Modal: runs TRIBE v2 (see ml/README.md), POSTs back to webhook_url.
 
-| Concern | Technology |
-|---|---|
-| Language | Python 3.11 |
-| API Framework | FastAPI |
-| GPU Cloud | Modal.com (serverless, A10G GPU) |
-| Model | TRIBE v2 (`facebook/tribev2`) |
-| Model Loading | HuggingFace Hub (`snapshot_download`) |
-| Weight Caching | Modal Volume (persists across cold starts) |
-| Request Validation | Pydantic v2 |
-| Video Processing | MoviePy |
-| Brain Atlas | Nilearn / nibabel |
+4. /api/webhook/inference
+   ├─ verifies x-webhook-secret
+   ├─ updates Job: status, viralityScore, brainRegions, activationMap, note
+   └─ stuffs timeseries / destrieux_full / peak_moments / raw_npy_url / metadata
+      into Job.rawOutput (Json) — one catch-all blob for the Playground UI.
+
+5. ResultsClient polls jobs.getById every 5 s until status ∈ {COMPLETED, FAILED}.
+   On COMPLETED: ViralityScoreCard + BrainMesh + BrainRegionsTable +
+                 Recommendations + Playground.
+```
 
 ---
 
+## The brain viewer ([`src/components/BrainMesh.tsx`](src/components/BrainMesh.tsx))
 
-## Getting Started
+- **Mesh**: fsaverage5 cortical surface, same space TRIBE v2 predicts on.
+  Baked once by [`../../ml/scripts/bake_mesh.py`](../../ml/scripts/bake_mesh.py)
+  into a compact binary under `public/atlas/`. 20,484 vertices, 40,960 faces
+  per surface; `activationMap[i]` maps 1-to-1 to vertex `i`.
+- **Two surfaces**: inflated (smoother, easier to read regions) and pial
+  (real folding). Toggle in the viewer. Both share vertex ordering + face
+  topology, so the activation overlay works identically on either.
+- **Sulc shading**: baked per-vertex from FreeSurfer sulcal depth. Gyri
+  rendered light, sulci dark; the activation colormap blends on top above a
+  user-controlled threshold so the anatomy reads through low-activation areas.
+- **View presets**: lateral / medial / dorsal — hemispheres rotate in place
+  (camera is fixed) so each view shows the canonical face.
+- **Hover tooltip**: raycast against the mesh, look up Destrieux label index
+  per vertex → region name, activation value, hemisphere.
+- **Destrieux parcellation** packed with the mesh: 76 cortical labels, used
+  both for hover and for the Playground's "Full Destrieux breakdown" table.
 
-### Prerequisites
+Binary asset layout in [`public/atlas/fsaverage5.bin`](public/atlas/) (offsets
+in `fsaverage5.meta.json`): `{lh,rh}_{v_infl,v_pial,f,sulc,labels}`. ~1 MB total.
 
-- Node.js 20+
-- Python 3.11+
-- Modal account (`pip install modal && modal token new`)
-- NeonDB account
-- Cloudflare account (R2)
-- Google Cloud Console project (OAuth credentials)
-- HuggingFace account + read token (for TRIBE v2 gated model)
+---
 
-### Web Layer
+## The Playground ([`src/components/Playground.tsx`](src/components/Playground.tsx))
+
+POC-mode section at the bottom of the results page showing everything TRIBE
+hands back, not just the 6 tracked regions:
+
+- **Whole-brain activation timeline** — SVG line chart of mean activation per
+  timestep. Shows where in the video the biggest engagement peak happens.
+- **Region × time heatmap** — 6 tracked regions × N timesteps, row-normalized
+  CSS grid. Reveals *which* region fires *when*.
+- **Peak moments** — top 5 timesteps by whole-brain mean, each annotated with
+  the three regions that dominated.
+- **Full Destrieux breakdown** — collapsible table of all ~148 (label × hemi)
+  rows, sortable.
+- **Raw data**
+  - Download raw `.npy` (7-day presigned R2 URL to the full `(T, V)` float32
+    tensor — plug into a notebook)
+  - Collapsible pretty-printed JSON of the whole `rawOutput` blob with
+    copy-to-clipboard.
+
+No chart libs — all SVG/CSS.
+
+---
+
+## Data model ([`prisma/schema.prisma`](prisma/schema.prisma))
+
+BetterAuth tables (`user`, `session`, `account`, `verification`) are standard.
+The one app-specific table:
+
+```prisma
+enum JobStatus { PENDING PROCESSING COMPLETED FAILED }
+
+model Job {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status        JobStatus @default(PENDING)
+  inputType     String         // "video" | "image"
+  fileName      String
+  r2Key         String
+  r2Url         String?
+  activationMap Json?          // 20,484 floats (mean over time)
+  brainRegions  Json?          // 6 tracked regions with {name, activation, function}
+  viralityScore Float?
+  note          String?        // demo-mode Easter-egg / informational banner
+  errorMessage  String?
+  rawOutput     Json?          // catch-all: timeseries, destrieux_full, peak_moments, raw_npy_url, metadata
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  completedAt   DateTime?
+}
+```
+
+State transitions: strictly `PENDING → PROCESSING → COMPLETED | FAILED`.
+Never skipped, never reversed.
+
+---
+
+## Environment variables
+
+`.env.example` documents every var. Prod values live on Vercel.
+
+| Var | What | Dev | Prod |
+|---|---|---|---|
+| `DATABASE_URL` | Postgres URL | `postgresql://dev:dev@localhost:5432/neureel` | Neon **pooled** URL + `?sslmode=require&pgbouncer=true&connect_timeout=10` |
+| `BETTER_AUTH_SECRET` | HMAC secret | `openssl rand -base64 32` (local) | fresh value on Vercel |
+| `BETTER_AUTH_URL` | BetterAuth's canonical base | `http://localhost:3000` | `https://neureel.vercel.app` |
+| `GOOGLE_CLIENT_ID` / `_SECRET` | OAuth creds | same | same |
+| `NEXT_PUBLIC_APP_URL` | What the browser hits | `http://localhost:3000` | `https://neureel.vercel.app` |
+| `WEBHOOK_BASE_URL` | Public URL Modal POSTs back to | ngrok tunnel (Modal can't reach localhost) | `https://neureel.vercel.app` |
+| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` | Cloudflare R2 creds | same | same |
+| `MODAL_API_URL` | Deployed Modal FastAPI | `https://<user>--neureel-ml-fastapi-app.modal.run` | same |
+| `MODAL_WEBHOOK_SECRET` | Shared secret with Modal | `openssl rand -base64 32` | same value must be in Modal secret `neureel-secrets` under `WEBHOOK_SECRET` |
+
+**Why `NEXT_PUBLIC_APP_URL` is separate from `WEBHOOK_BASE_URL`:** in dev, the
+browser runs on plain `localhost:3000` (no ngrok browser warnings, no
+hydration weirdness), while Modal's webhook still goes through a tunnel since
+it can't reach `localhost` directly. In prod they're the same value.
+
+---
+
+## Local dev
+
+**Prereqs:** Node 20+, pnpm, Docker (for local Postgres) or a Neon dev branch,
+a running `ml/` Modal deploy for the inference path, an ngrok quick tunnel
+(optional — only needed to receive webhook callbacks from Modal).
 
 ```bash
-cd apps/web
+# 0. Install deps
 pnpm install
 
-# push prisma schema to NeonDB
+# 1. Bring up Postgres
+docker run -d --name neureel-pg \
+  -e POSTGRES_USER=dev -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=neureel \
+  -p 5432:5432 postgres:alpine
+
+# 2. Apply migrations
 pnpm db:migrate
 
-# run dev server
+# 3. Fill in .env (see apps/web/.env.example for the full list)
+
+# 4. (Optional) start an ngrok tunnel so Modal can deliver webhooks
+ngrok http --url=<your-reserved-domain>.ngrok-free.dev 3000
+# Put the tunnel URL into WEBHOOK_BASE_URL and extend R2 CORS:
+pnpm tsx scripts/r2-cors.ts http://localhost:3000 https://<your-ngrok>.ngrok-free.dev
+
+# 5. Run the app
 pnpm dev
 ```
 
-### ML Layer
+Open `http://localhost:3000` — sign in with Google, drop a short MP4. Watch
+Modal's dashboard logs for the GPU work.
 
-```bash
-cd ml
-python -m venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+Useful scripts:
 
-# authenticate with Modal
-modal token new
-
-# test locally (CPU only, slow — for structure testing not inference)
-modal run app.py
-
-# deploy to Modal (GPU)
-modal deploy app.py
-# → outputs your FastAPI endpoint URL
-# → paste this into MODAL_API_URL in apps/web/.env.local
 ```
-
-## Deployment
-
-### Web → Vercel
-
-```bash
-# in Vercel dashboard:
-# Root Directory: apps/web
-# Framework: Next.js
-# Add all env vars from apps/web/.env.local
+pnpm dev                  # Next dev server (Turbopack)
+pnpm build                # Full prod build (incl. prisma generate + ts check)
+pnpm lint                 # Biome check
+pnpm format               # Biome format --write
+pnpm db:migrate           # prisma migrate dev
+pnpm db:push              # prisma db push (no migration file)
+pnpm db:studio            # prisma studio
+pnpm db:generate          # regenerate client → src/generated/prisma/
+pnpm tsx scripts/r2-cors.ts <origin> [origin...]   # refresh R2 CORS policy
 ```
-
-Or via CLI:
-```bash
-cd apps/web
-npx vercel --prod
-```
-
-### ML → Modal
-
-```bash
-cd ml
-modal deploy app.py
-# Modal gives you a stable HTTPS URL for your FastAPI app
-# This URL goes into MODAL_API_URL
-```
-
-### Auto Deploy ML on Git Push
-
-See `.github/workflows/deploy-ml.yml` — triggers Modal deploy when `ml/**` changes on `main`. Requires `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` set in GitHub repo secrets.
 
 ---
 
-## Key Design Decisions
+## Deployment (Vercel)
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Repo structure | Monorepo | Single source of truth, easier for solo dev |
-| Backend pattern | Modular monolith (not microservices) | Too early for microservices overhead |
-| ML deployment | Modal.com serverless GPU | No infra management, pay-per-use, $30/mo free credit |
-| ML API | FastAPI on Modal | Industry standard for ML APIs, Pydantic validation, auto docs |
-| Inference pattern | Async + webhook | Inference takes 1–3 min, synchronous would timeout |
-| Auth provider | Google OAuth only | Target users are brand teams living in Google Workspace |
-| Auth library | BetterAuth | Modern, simple, Prisma adapter built-in |
-| File storage | Cloudflare R2 | S3-compatible, no egress fees, 10GB free |
-| Brain visualization | Niivue | Purpose-built WebGL brain viewer, React wrapper available |
-| Frontend polling | tRPC query every 5s | Simple, no WebSocket complexity needed at MVP stage |
-| Local ML | Not viable | TRIBE v2 needs 12GB+ VRAM, CUDA only — no Mac support |
+Repo is connected to Vercel with root directory `apps/web`.
 
----
+**First time setup:**
+1. `vercel login` and `vercel link` inside `apps/web`.
+2. Set every var from the env table above (prod column).
+3. Run migrations against Neon (see below).
+4. Add the prod URL to:
+   - Google OAuth → Authorized JS origins + Authorized redirect URIs (`/api/auth/callback/google`)
+   - R2 CORS → `pnpm tsx scripts/r2-cors.ts <all origins including prod>`
 
-## Current Unknowns
+**Prisma migrations on Neon** — use the **direct** endpoint (not the pooled
+`-pooler` one; Prisma's migrate engine needs durable connections):
 
-These must be resolved via Google Colab experimentation before ML code is finalized:
+```bash
+DATABASE_URL='postgresql://USER:PASS@ep-xxx.REGION.aws.neon.tech/neondb?sslmode=require' \
+  pnpm prisma migrate deploy
+```
 
-1. **TRIBE v2 exact inference API** — read `demo_utils.py` in the HuggingFace repo. Confirm: exact input format, preprocessing required (frame rate, audio sample rate, tokenization), and output tensor shape/format.
+Runtime uses the **pooled** URL with `?pgbouncer=true&connect_timeout=10` so
+Vercel serverless doesn't exhaust Neon's connection limit.
 
-2. **Voxel → brain region mapping** — TRIBE v2 outputs activations on a cortical surface mesh. Need to confirm which atlas (Destrieux or DK40) aligns with TRIBE v2's surface space (fsaverage or MNI) and how to map voxel indices to named anatomical regions programmatically.
-
-3. **Video preprocessing specs** — confirm exact frame rate, resolution, audio sampling rate, and clip length that TRIBE v2 expects. These go into `ml/inference/preprocess.py`.
-
-4. **LLaMA 3.2 gated access** — the text encoder inside TRIBE v2 uses LLaMA 3.2-3B which requires HuggingFace gated model approval. Request access before starting ML work.
-
----
-
-## For AI Agents Working on This Repo
-
-- **Web layer** is TypeScript only. Never put Python or ML code in `apps/web/`.
-- **ML layer** is Python only. Never put TypeScript or Next.js code in `ml/`.
-- **The webhook route** (`/api/webhook/inference`) is a plain Next.js route handler, NOT a tRPC procedure. This is intentional — Modal calls it directly, not the browser.
-- **Never store video/image files in NeonDB.** All media goes to Cloudflare R2. DB stores only the R2 key reference.
-- **Job status transitions:** `PENDING → PROCESSING → COMPLETED | FAILED`. Never skip states.
-- **The virality score weights** in `apps/web/src/lib/scoring.ts` are the core product differentiator. Do not hardcode them — they should be configurable so they can be tuned over time.
-- **TRIBE v2 model weights** are cached in a Modal Volume named `tribe-v2-weights`. Never re-download on every inference call — always check if the volume path exists first.
-- **Authentication:** All tRPC procedures except `health` are protected. Use the `protectedProcedure` helper, not `publicProcedure`, for any route that touches user data or triggers inference.
-- **Webhook verification:** Always verify the `x-webhook-secret` header in `/api/webhook/inference` before processing. Reject with 401 if missing or mismatched.
+**Subsequent deploys:** push to `main`. Vercel auto-builds. ML changes deploy
+independently via [`.github/workflows/deploy-ml.yml`](../../.github/workflows/deploy-ml.yml).

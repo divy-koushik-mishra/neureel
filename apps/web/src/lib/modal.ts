@@ -22,7 +22,11 @@ export async function triggerInference(params: TriggerInferenceParams) {
     );
   }
 
-  const res = await fetch(`${modalUrl}/inference`, {
+  // Strip trailing slash so a stray WEBHOOK_BASE_URL="https://.../" doesn't
+  // produce "https://.../ /api/webhook/inference" with a double slash.
+  const normalizedBase = callbackBase.replace(/\/+$/, "");
+
+  const res = await fetch(`${modalUrl.replace(/\/+$/, "")}/inference`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -32,7 +36,7 @@ export async function triggerInference(params: TriggerInferenceParams) {
       job_id: params.jobId,
       file_url: params.fileUrl,
       file_type: params.fileType,
-      webhook_url: `${callbackBase}/api/webhook/inference`,
+      webhook_url: `${normalizedBase}/api/webhook/inference`,
     }),
   });
 

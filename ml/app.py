@@ -40,7 +40,18 @@ image = (
         "pillow",
     )
     .run_commands("python -m spacy download en_core_web_sm")
-    .env({"HF_HOME": "/cache/huggingface"})
+    .env(
+        {
+            "HF_HOME": "/cache/huggingface",
+            # NOTE: we intentionally do NOT set HF_HUB_OFFLINE here. Which
+            # aux models TRIBE actually pulls depends on the input:
+            # videos with spoken audio trigger LLaMA 3.2-3B for text
+            # features, shorter/silent clips don't. Offline-mode caused
+            # cache misses the first time a new modality showed up. We
+            # rely on the Volume as a warm cache, falling back to HF with
+            # the HF_TOKEN from `neureel-secrets` if something's missing.
+        }
+    )
     .add_local_python_source("schemas", "inference", "utils")
 )
 
@@ -252,6 +263,9 @@ class TribeInference:
                 json=result,
                 headers={"x-webhook-secret": os.environ["WEBHOOK_SECRET"]},
                 timeout=httpx.Timeout(30.0, connect=10.0),
+                # Follow http→https (308) or other redirects so a misconfigured
+                # WEBHOOK_BASE_URL doesn't silently drop results.
+                follow_redirects=True,
             )
             _log(
                 f"webhook POST -> {resp.status_code} in {time.monotonic() - t_wh:.1f}s"
