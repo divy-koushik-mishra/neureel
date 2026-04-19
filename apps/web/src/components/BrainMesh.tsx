@@ -4,6 +4,7 @@ import { OrbitControls } from "@react-three/drei";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { cn } from "@/lib/utils";
 
 // -------------------------------------------------------------------------
 // Binary mesh loader
@@ -415,7 +416,10 @@ export function BrainMesh({
   if (error) {
     return (
       <div
-        className={`flex aspect-[4/3] w-full items-center justify-center rounded-lg border border-border bg-card/40 text-xs text-muted-foreground ${className ?? ""}`}
+        className={cn(
+          "flex aspect-[4/3] w-full items-center justify-center rounded-lg border border-border bg-card/40 text-xs text-muted-foreground",
+          className,
+        )}
       >
         mesh load failed: {error}
       </div>
@@ -425,7 +429,10 @@ export function BrainMesh({
   return (
     <div
       ref={containerRef}
-      className={`relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-border bg-[oklch(0.07_0.02_270)] ${className ?? ""}`}
+      className={cn(
+        "relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-border bg-[oklch(0.07_0.02_270)] sm:aspect-[16/10] lg:aspect-auto lg:h-[560px]",
+        className,
+      )}
     >
       <Canvas
         camera={{ position: [0, 0, 260], fov: 32, near: 1, far: 2000 }}
@@ -485,7 +492,7 @@ export function BrainMesh({
       </Canvas>
 
       {/* Top-left: view + surface toggles */}
-      <div className="absolute left-3 top-3 flex items-center gap-2 text-[11px] uppercase tracking-wider">
+      <div className="absolute left-3 top-3 flex max-w-[calc(100%-24px)] flex-wrap items-center gap-2 text-[11px] uppercase tracking-wider">
         <div className="flex gap-1 rounded-md border border-border/60 bg-card/70 p-1 backdrop-blur">
           {(["lateral", "medial", "dorsal"] as ViewPreset[]).map((v) => (
             <button
@@ -520,8 +527,8 @@ export function BrainMesh({
         </div>
       </div>
 
-      {/* Top-right: threshold */}
-      <div className="absolute right-3 top-3 flex items-center gap-2 rounded-md border border-border/60 bg-card/70 px-3 py-1.5 text-[11px] text-muted-foreground backdrop-blur">
+      {/* Top-right: threshold (hidden on very small screens to avoid overlap) */}
+      <div className="absolute right-3 top-3 hidden items-center gap-2 rounded-md border border-border/60 bg-card/70 px-3 py-1.5 text-[11px] text-muted-foreground backdrop-blur sm:flex">
         <span>threshold</span>
         <input
           type="range"
@@ -530,7 +537,7 @@ export function BrainMesh({
           step={0.01}
           value={threshold}
           onChange={(e) => setThreshold(Number(e.target.value))}
-          className="h-1 w-28 accent-brand"
+          className="h-1 w-20 accent-brand md:w-28"
         />
         <span className="tabular-nums text-foreground/80">
           {threshold.toFixed(2)}

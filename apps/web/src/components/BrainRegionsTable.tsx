@@ -22,32 +22,42 @@ export function BrainRegionsTable({ regions }: { regions: BrainRegion[] }) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[24%]">Region</TableHead>
-          <TableHead className="w-[34%]">Function</TableHead>
-          <TableHead className="w-[32%]">Activation</TableHead>
+          <TableHead className="w-[38%] sm:w-[22%]">Region</TableHead>
+          <TableHead className="hidden sm:table-cell sm:w-[34%]">
+            Function
+          </TableHead>
+          <TableHead className="w-[42%] sm:w-[32%]">Activation</TableHead>
           <TableHead className="text-right">Value</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {sorted.map((region) => (
-          <TableRow key={region.name}>
-            <TableCell className="font-medium">
-              {prettyName(region.name)}
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {region.function ?? REGION_FUNCTIONS[region.name] ?? "—"}
-            </TableCell>
-            <TableCell>
-              <Progress
-                value={Math.round(region.activation * 100)}
-                tone="brand"
-              />
-            </TableCell>
-            <TableCell className="text-right tabular-nums text-muted-foreground">
-              {region.activation.toFixed(3)}
-            </TableCell>
-          </TableRow>
-        ))}
+        {sorted.map((region) => {
+          const fn = region.function ?? REGION_FUNCTIONS[region.name] ?? "—";
+          return (
+            <TableRow key={region.name}>
+              <TableCell className="font-medium">
+                <span className="block truncate">
+                  {prettyName(region.name)}
+                </span>
+                <span className="block text-[11px] text-muted-foreground sm:hidden">
+                  {fn}
+                </span>
+              </TableCell>
+              <TableCell className="hidden text-muted-foreground sm:table-cell">
+                {fn}
+              </TableCell>
+              <TableCell>
+                <Progress
+                  value={Math.round(region.activation * 100)}
+                  tone="brand"
+                />
+              </TableCell>
+              <TableCell className="text-right tabular-nums text-muted-foreground">
+                {region.activation.toFixed(3)}
+              </TableCell>
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );

@@ -16,12 +16,12 @@ export function DashboardClient() {
   });
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-8 sm:gap-10">
       <UploadZone />
 
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-3 sm:gap-4">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold tracking-tight">
+          <h2 className="text-base font-semibold tracking-tight sm:text-lg">
             Recent analyses
           </h2>
           {jobs.data ? (

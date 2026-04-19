@@ -122,7 +122,7 @@ export function UploadZone() {
     <div
       {...getRootProps()}
       className={cn(
-        "group relative flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-card/50 p-8 text-center transition-all hover:border-brand/60 hover:bg-card",
+        "group relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-card/50 p-6 text-center transition-all hover:border-brand/60 hover:bg-card sm:min-h-[220px] sm:p-8",
         isDragActive && "border-brand bg-brand/5",
         busy && "cursor-wait",
       )}
@@ -131,13 +131,16 @@ export function UploadZone() {
 
       {stage === "idle" || stage === "error" ? (
         <>
-          <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-brand/10 text-brand">
-            <Upload className="size-6" />
+          <div className="mb-3 flex size-11 items-center justify-center rounded-full bg-brand/10 text-brand sm:size-12">
+            <Upload className="size-5 sm:size-6" />
           </div>
-          <p className="text-base font-medium text-foreground">
-            Drop a video or image, or click to choose
+          <p className="text-sm font-medium text-foreground sm:text-base">
+            <span className="hidden sm:inline">
+              Drop a video or image, or click to choose
+            </span>
+            <span className="sm:hidden">Tap to upload a video or image</span>
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
             MP4, MOV, AVI, JPG, PNG, WebP — up to 100 MB
           </p>
           {error ? (

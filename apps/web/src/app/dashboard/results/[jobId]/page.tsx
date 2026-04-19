@@ -14,10 +14,10 @@ export default async function ResultsPage({
   const { jobId } = await params;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5 sm:gap-6">
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-2 self-start text-sm text-muted-foreground hover:text-foreground"
+        className="inline-flex items-center gap-2 self-start text-xs text-muted-foreground hover:text-foreground sm:text-sm"
       >
         <ArrowLeft className="size-4" />
         Back to dashboard

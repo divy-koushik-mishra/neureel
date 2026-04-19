@@ -176,13 +176,13 @@ export function Playground({ raw }: { raw: RawOutput | null }) {
 
   return (
     <Card className="p-0">
-      <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border/60 p-5">
+      <CardHeader className="flex flex-col gap-2 border-b border-border/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-5">
         <div className="flex items-center gap-2">
           <FlaskConical className="size-4 text-brand" />
           <CardTitle>Playground</CardTitle>
         </div>
         {metadata ? (
-          <div className="hidden flex-wrap items-center gap-3 text-xs text-muted-foreground md:flex">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground sm:text-xs">
             {metadata.n_vertices != null ? (
               <span>{metadata.n_vertices.toLocaleString()} vertices</span>
             ) : null}
@@ -201,7 +201,7 @@ export function Playground({ raw }: { raw: RawOutput | null }) {
         ) : null}
       </CardHeader>
 
-      <CardContent className="flex flex-col gap-8 p-5">
+      <CardContent className="flex flex-col gap-7 p-4 sm:gap-8 sm:p-5">
         {timeseries && timeseries.whole_brain_mean.length > 0 ? (
           <WholeBrainTimeline
             series={timeseries.whole_brain_mean}
@@ -365,12 +365,7 @@ function RegionHeatmap({
           row-normalized · {nT} timesteps
         </span>
       </header>
-      <div
-        className="grid gap-px overflow-hidden rounded-md border border-border/60 bg-border/40 text-xs"
-        style={{
-          gridTemplateColumns: "140px 1fr",
-        }}
-      >
+      <div className="grid grid-cols-[96px_1fr] gap-px overflow-hidden rounded-md border border-border/60 bg-border/40 text-xs sm:grid-cols-[140px_1fr]">
         {normalized.map(([name, vals]) => (
           <Fragment key={name}>
             <div className="flex items-center gap-2 bg-card/60 px-3 py-2 text-[11px]">
@@ -414,20 +409,20 @@ function PeakMoments({ moments }: { moments: PeakMoment[] }) {
         {moments.map((m) => (
           <div
             key={m.timestep}
-            className="flex items-center gap-4 px-4 py-3 text-sm"
+            className="flex flex-wrap items-center gap-3 px-3 py-3 text-sm sm:gap-4 sm:px-4"
           >
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Clock className="size-3.5" />
               <span className="tabular-nums">{fmtSeconds(m.time_seconds)}</span>
             </div>
-            <div className="w-24 text-xs tabular-nums text-muted-foreground">
+            <div className="w-20 text-xs tabular-nums text-muted-foreground sm:w-24">
               {m.activation.toFixed(4)}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {m.top_regions.map((r) => (
                 <span
                   key={r.name}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/40 px-2.5 py-0.5 text-xs"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/40 px-2 py-0.5 text-[11px] sm:px-2.5 sm:text-xs"
                 >
                   <span
                     className="size-1.5 rounded-full"

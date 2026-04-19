@@ -48,7 +48,7 @@ export function BrainViewerFallback({
   return (
     <div
       className={cn(
-        "relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-lg border border-border bg-gradient-to-b from-card to-background",
+        "relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-lg border border-border bg-gradient-to-b from-card to-background sm:aspect-[16/10] lg:aspect-auto lg:h-[560px]",
         className,
       )}
     >

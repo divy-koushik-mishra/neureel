@@ -97,7 +97,15 @@ export const jobsRouter = createTRPCRouter({
       if (!job) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
-      return job;
+      let fileUrl: string | null = null;
+      if (job.r2Key) {
+        try {
+          fileUrl = await getSignedDownloadUrl(job.r2Key);
+        } catch {
+          fileUrl = null;
+        }
+      }
+      return { ...job, fileUrl };
     }),
 
   list: protectedProcedure.query(async ({ ctx }) => {

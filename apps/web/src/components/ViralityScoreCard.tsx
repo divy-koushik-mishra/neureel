@@ -20,22 +20,28 @@ const toneGlowClass: Record<string, string> = {
 
 export function ViralityScoreCard({ score }: { score: number }) {
   const label = getViralityLabel(score);
+  const pct = Math.max(0, Math.min(100, score));
   return (
-    <Card className={cn("relative p-8", toneGlowClass[label.tone])}>
+    <Card
+      className={cn(
+        "relative flex flex-col gap-5 overflow-hidden p-6 sm:gap-6 sm:p-8",
+        toneGlowClass[label.tone],
+      )}
+    >
       <div className="flex flex-col items-start gap-1">
-        <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-          Virality Score
+        <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
+          Virality score
         </p>
         <div className="flex items-baseline gap-2">
           <div
             className={cn(
-              "text-7xl font-semibold tabular-nums leading-none",
+              "text-6xl font-semibold tabular-nums leading-none sm:text-7xl",
               toneTextClass[label.tone],
             )}
           >
             {score.toFixed(1)}
           </div>
-          <div className="text-xl text-muted-foreground">/100</div>
+          <div className="text-lg text-muted-foreground sm:text-xl">/100</div>
         </div>
         <div
           className={cn(
@@ -45,10 +51,39 @@ export function ViralityScoreCard({ score }: { score: number }) {
         >
           {label.label}
         </div>
-        <p className="mt-1 max-w-md text-sm text-muted-foreground">
+        <p className="mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">
           {label.description}
         </p>
       </div>
+
+      <ScoreRail pct={pct} tone={label.tone} />
     </Card>
+  );
+}
+
+function ScoreRail({ pct, tone }: { pct: number; tone: string }) {
+  const fillClass: Record<string, string> = {
+    emerald: "bg-emerald-400",
+    sky: "bg-sky-400",
+    amber: "bg-amber-400",
+    orange: "bg-orange-400",
+    rose: "bg-rose-400",
+  };
+  return (
+    <div className="mt-auto">
+      <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted/80">
+        <div
+          className={cn("h-full rounded-full", fillClass[tone])}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="mt-2 flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
+        <span>0</span>
+        <span>25</span>
+        <span>50</span>
+        <span>75</span>
+        <span>100</span>
+      </div>
+    </div>
   );
 }
