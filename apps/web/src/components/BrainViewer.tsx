@@ -9,7 +9,7 @@ interface Props {
   /** 6-region tracked summary — feeds the fallback + the label pane if present. */
   regions: BrainRegion[];
   /** Per-vertex activation (length ~20484 matching fsaverage5). */
-  activationMap?: number[] | null;
+  activationMap?: number[] | Float32Array | null;
   className?: string;
 }
 
@@ -33,7 +33,8 @@ export function BrainViewer({ regions, activationMap, className }: Props) {
   useEffect(() => {
     // Only try 3D when WebGL exists AND we have a real activation vector.
     const hasActivation =
-      Array.isArray(activationMap) && activationMap.length > 1000;
+      (Array.isArray(activationMap) || activationMap instanceof Float32Array) &&
+      activationMap.length > 1000;
     setUse3D(webglAvailable() && hasActivation);
   }, [activationMap]);
 

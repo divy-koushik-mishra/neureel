@@ -9,6 +9,7 @@ import { BrainViewer } from "@/components/BrainViewer";
 import { MediaPreview } from "@/components/MediaPreview";
 import { normalizeRawOutput, Playground } from "@/components/Playground";
 import { Recommendations } from "@/components/Recommendations";
+import { Replay } from "@/components/Replay";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ViralityScoreCard } from "@/components/ViralityScoreCard";
@@ -87,6 +88,23 @@ export function SharedAnalysis({ slug }: { slug: string }) {
         />
         <BrainViewer regions={regions} activationMap={activationMap} />
       </section>
+
+      {raw ? (
+        <section className="flex flex-col gap-3">
+          <SectionHeader
+            eyebrow="Replay"
+            title="Frame-by-frame playback"
+            sub="Watch the brain track the video, second by second"
+          />
+          <Replay
+            fileUrl={j.fileUrl ?? null}
+            fileName={j.fileName}
+            inputType={j.inputType}
+            fallbackActivation={activationMap}
+            rawOutput={raw}
+          />
+        </section>
+      ) : null}
 
       <section className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-3">

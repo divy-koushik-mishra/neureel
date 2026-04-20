@@ -138,13 +138,21 @@ function norm01(v: number, lo: number, hi: number): number {
   return Math.max(0, Math.min(1, (v - lo) / span));
 }
 
-function buildVertexColors(
+type ActivationArray = number[] | Float32Array;
+
+/**
+ * Writes per-vertex RGB colors into the provided destination buffer.
+ * Caller is responsible for sizing `dest` at `n * 3` and marking the
+ * color BufferAttribute dirty afterwards. Used for per-frame recolors
+ * where we want to avoid allocating a fresh Float32Array on every update.
+ */
+function fillVertexColors(
+  dest: Float32Array,
   hemi: Hemi,
-  activationSlice: number[],
+  activationSlice: ActivationArray,
   threshold: number,
-): Float32Array {
+): void {
   const n = hemi.positionsInfl.length / 3;
-  const colors = new Float32Array(n * 3);
 
   const [sLo, sHi] = robustRange(hemi.sulc, Math.min(hemi.sulc.length, n));
   const actLen = Math.min(activationSlice.length, n);
@@ -176,11 +184,10 @@ function buildVertexColors(
       }
     }
 
-    colors[i * 3 + 0] = r;
-    colors[i * 3 + 1] = g;
-    colors[i * 3 + 2] = b;
+    dest[i * 3 + 0] = r;
+    dest[i * 3 + 1] = g;
+    dest[i * 3 + 2] = b;
   }
-  return colors;
 }
 
 // -------------------------------------------------------------------------
@@ -203,7 +210,7 @@ interface HemisphereMeshProps {
   side: "left" | "right";
   surface: SurfaceKind;
   globalOffset: number;
-  activationSlice: number[];
+  activationSlice: ActivationArray;
   threshold: number;
   position: [number, number, number];
   rotation: [number, number, number];
@@ -225,16 +232,38 @@ function HemisphereMesh({
   const positions =
     surface === "pial" ? hemi.positionsPial : hemi.positionsInfl;
 
+  // Static geometry — built once per hemi+surface. Includes a zero-filled
+  // color attribute buffer that the color-update effect below writes into.
   const geometry = useMemo(() => {
     const geom = new THREE.BufferGeometry();
     geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     geom.setIndex(new THREE.BufferAttribute(hemi.faces, 1));
-    const colors = buildVertexColors(hemi, activationSlice, threshold);
-    geom.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    const n = positions.length / 3;
+    geom.setAttribute(
+      "color",
+      new THREE.BufferAttribute(new Float32Array(n * 3), 3),
+    );
     geom.computeVertexNormals();
     geom.computeBoundingSphere();
     return geom;
-  }, [hemi, positions, activationSlice, threshold]);
+  }, [hemi, positions]);
+
+  // Per-frame / per-threshold color update. Writes directly into the
+  // existing color buffer and flags it dirty — much cheaper than rebuilding
+  // the whole BufferGeometry (which would recompute normals too).
+  useEffect(() => {
+    const colorAttr = geometry.getAttribute(
+      "color",
+    ) as THREE.BufferAttribute | null;
+    if (!colorAttr) return;
+    fillVertexColors(
+      colorAttr.array as Float32Array,
+      hemi,
+      activationSlice,
+      threshold,
+    );
+    colorAttr.needsUpdate = true;
+  }, [geometry, hemi, activationSlice, threshold]);
 
   const onPointerMove = useCallback(
     (e: ThreeEvent<PointerEvent>) => {
@@ -359,7 +388,7 @@ export function BrainMesh({
   activation,
   className,
 }: {
-  activation: number[];
+  activation: ActivationArray;
   className?: string;
 }) {
   const [bundle, setBundle] = useState<MeshBundle | null>(null);
@@ -386,14 +415,26 @@ export function BrainMesh({
   const layout = useMemo(() => layoutFor(view), [view]);
 
   const { lhAct, rhAct, topRegions } = useMemo(() => {
-    if (!bundle) return { lhAct: [], rhAct: [], topRegions: [] as string[] };
+    if (!bundle)
+      return {
+        lhAct: [] as ActivationArray,
+        rhAct: [] as ActivationArray,
+        topRegions: [] as string[],
+      };
     const lhN = bundle.left.positionsInfl.length / 3;
     const rhN = bundle.right.positionsInfl.length / 3;
-    const lh = activation.slice(0, lhN);
-    const rh = activation.slice(lhN, lhN + rhN);
+    // For Float32Array, prefer subarray (zero-copy view) over slice (allocates).
+    const lh: ActivationArray =
+      activation instanceof Float32Array
+        ? activation.subarray(0, lhN)
+        : activation.slice(0, lhN);
+    const rh: ActivationArray =
+      activation instanceof Float32Array
+        ? activation.subarray(lhN, lhN + rhN)
+        : activation.slice(lhN, lhN + rhN);
 
     const byLabel = new Map<number, { sum: number; n: number }>();
-    const push = (hemi: Hemi, slice: number[]) => {
+    const push = (hemi: Hemi, slice: ActivationArray) => {
       for (let i = 0; i < slice.length; i++) {
         const lid = hemi.labels[i] ?? 0;
         if (!lid) continue; // skip unknown / medial wall

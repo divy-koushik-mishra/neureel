@@ -111,7 +111,8 @@ export const jobsRouter = createTRPCRouter({
           fileUrl = null;
         }
       }
-      return { ...job, fileUrl };
+      const rawOutput = await withFreshRawNpyUrl(job.id, job.rawOutput);
+      return { ...job, rawOutput, fileUrl };
     }),
 
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -190,8 +191,32 @@ export const jobsRouter = createTRPCRouter({
         }
       }
 
+      const rawOutput = await withFreshRawNpyUrl(job.id, job.rawOutput);
+
       // Don't leak the raw R2 key — only the signed URL.
       const { r2Key: _r2Key, ...safe } = job;
-      return { ...safe, fileUrl };
+      return { ...safe, rawOutput, fileUrl };
     }),
 });
+
+/**
+ * Overlay a freshly-signed R2 GET URL for `raw/<id>.npy` onto the persisted
+ * `rawOutput.raw_npy_url`. Jobs created earlier than the 7-day signing window
+ * have a dead URL on them; this keeps their `.npy` reachable indefinitely.
+ * Jobs whose `.npy` was never uploaded (e.g. R2 creds missing during
+ * inference) keep their original `null` value.
+ */
+async function withFreshRawNpyUrl(
+  jobId: string,
+  rawOutput: unknown,
+): Promise<unknown> {
+  if (!rawOutput || typeof rawOutput !== "object") return rawOutput;
+  const obj = rawOutput as Record<string, unknown>;
+  if (typeof obj.raw_npy_url !== "string") return rawOutput;
+  try {
+    const fresh = await getSignedDownloadUrl(`raw/${jobId}.npy`);
+    return { ...obj, raw_npy_url: fresh };
+  } catch {
+    return rawOutput;
+  }
+}
