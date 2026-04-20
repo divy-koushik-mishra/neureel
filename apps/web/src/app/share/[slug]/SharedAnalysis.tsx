@@ -6,6 +6,7 @@ import { AlertTriangle, ArrowRight, Globe } from "lucide-react";
 import Link from "next/link";
 import { BrainRegionsTable } from "@/components/BrainRegionsTable";
 import { BrainViewer } from "@/components/BrainViewer";
+import { MediaPreview } from "@/components/MediaPreview";
 import { normalizeRawOutput, Playground } from "@/components/Playground";
 import { Recommendations } from "@/components/Recommendations";
 import { buttonVariants } from "@/components/ui/button";
@@ -70,15 +71,21 @@ export function SharedAnalysis({ slug }: { slug: string }) {
       {j.note ? <DemoNoteBanner note={j.note} /> : null}
 
       <section className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+        <MediaPreview
+          fileUrl={j.fileUrl ?? null}
+          fileName={j.fileName}
+          inputType={j.inputType}
+        />
         <ViralityScoreCard score={score} />
-        <div className="flex flex-col gap-3 self-start lg:col-start-2 lg:row-start-1">
-          <SectionHeader
-            eyebrow="Brain activation"
-            title="Where attention fires"
-            sub="Drag to rotate · scroll to zoom"
-          />
-          <BrainViewer regions={regions} activationMap={activationMap} />
-        </div>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <SectionHeader
+          eyebrow="Brain activation"
+          title="Where attention fires"
+          sub="Drag to rotate · scroll to zoom"
+        />
+        <BrainViewer regions={regions} activationMap={activationMap} />
       </section>
 
       <section className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">

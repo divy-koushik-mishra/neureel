@@ -87,8 +87,9 @@ export function ShareButton({ jobId, isPublic, publicSlug, disabled }: Props) {
             <div className="mb-3">
               <p className="text-sm font-medium">Share this analysis</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Anyone with the link can view the virality score, brain
-                activation, and the Playground. The original upload is hidden.
+                Anyone with the link can view the uploaded media, virality
+                score, brain activation, and the Playground. Turn sharing off to
+                invalidate the link.
               </p>
             </div>
 

@@ -154,7 +154,8 @@ export const jobsRouter = createTRPCRouter({
     }),
 
   // Public (no auth) — read-only subset keyed by the random slug.
-  // Deliberately excludes userId, r2Key, r2Url, errorMessage, etc.
+  // Deliberately excludes userId, r2Url, errorMessage. r2Key is read only
+  // to re-sign a short-lived media URL and is not returned.
   getPublicBySlug: baseProcedure
     .input(z.object({ slug: z.string().min(1).max(120) }))
     .query(async ({ input }) => {
@@ -172,12 +173,25 @@ export const jobsRouter = createTRPCRouter({
           note: true,
           createdAt: true,
           completedAt: true,
+          r2Key: true,
           user: { select: { name: true, image: true } },
         },
       });
       if (!job) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
-      return job;
+
+      let fileUrl: string | null = null;
+      if (job.r2Key) {
+        try {
+          fileUrl = await getSignedDownloadUrl(job.r2Key);
+        } catch {
+          fileUrl = null;
+        }
+      }
+
+      // Don't leak the raw R2 key — only the signed URL.
+      const { r2Key: _r2Key, ...safe } = job;
+      return { ...safe, fileUrl };
     }),
 });
