@@ -94,6 +94,8 @@ model Job {
   note          String?
   errorMessage  String?
   rawOutput     Json?
+  isPublic      Boolean   @default(false)
+  publicSlug    String?   @unique
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   completedAt   DateTime?

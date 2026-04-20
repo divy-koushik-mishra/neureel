@@ -9,6 +9,7 @@ import { JobStatusBadge } from "@/components/JobStatusBadge";
 import { MediaPreview } from "@/components/MediaPreview";
 import { normalizeRawOutput, Playground } from "@/components/Playground";
 import { Recommendations } from "@/components/Recommendations";
+import { ShareButton } from "@/components/ShareButton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ViralityScoreCard } from "@/components/ViralityScoreCard";
@@ -64,6 +65,9 @@ export function ResultsClient({ jobId }: { jobId: string }) {
         status={j.status}
         createdAt={createdAt}
         completedAt={completedAt}
+        jobId={j.id}
+        isPublic={j.isPublic ?? false}
+        publicSlug={j.publicSlug ?? null}
       />
 
       {j.note ? <DemoNoteBanner note={j.note} /> : null}
@@ -133,11 +137,17 @@ function JobHeader({
   status,
   createdAt,
   completedAt,
+  jobId,
+  isPublic,
+  publicSlug,
 }: {
   fileName: string;
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
   createdAt: Date;
   completedAt: Date | null;
+  jobId: string;
+  isPublic: boolean;
+  publicSlug: string | null;
 }) {
   return (
     <header className="flex flex-col gap-3 border-b border-border/60 pb-5 sm:flex-row sm:items-end sm:justify-between">
@@ -158,8 +168,14 @@ function JobHeader({
           ) : null}
         </p>
       </div>
-      <div className="shrink-0">
+      <div className="flex shrink-0 items-center gap-2">
         <JobStatusBadge status={status} />
+        <ShareButton
+          jobId={jobId}
+          isPublic={isPublic}
+          publicSlug={publicSlug}
+          disabled={status !== "COMPLETED"}
+        />
       </div>
     </header>
   );
