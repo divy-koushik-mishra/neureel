@@ -130,7 +130,12 @@ export function ResultsClient({ jobId }: { jobId: string }) {
             </div>
             <div className="flex flex-col gap-3">
               <SectionHeader eyebrow="Playbook" title="Edit suggestions" />
-              <Recommendations regions={regions} />
+              <Recommendations
+                regions={regions}
+                trackedSeries={raw?.timeseries?.tracked_region_series}
+                peakMoments={raw?.peak_moments ?? undefined}
+                timestepSeconds={raw?.metadata?.timestep_seconds}
+              />
             </div>
           </section>
 

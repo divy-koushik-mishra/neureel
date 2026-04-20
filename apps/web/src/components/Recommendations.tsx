@@ -1,9 +1,33 @@
 import { Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { type BrainRegion, deriveRecommendations } from "@/lib/scoring";
+import {
+  type BrainRegion,
+  deriveRecommendations,
+  type PeakMomentForRec,
+} from "@/lib/scoring";
 
-export function Recommendations({ regions }: { regions: BrainRegion[] }) {
-  const tips = deriveRecommendations(regions);
+interface Props {
+  regions: BrainRegion[];
+  /** Per-region per-timestep series from rawOutput. Optional for legacy jobs. */
+  trackedSeries?: Record<string, number[]>;
+  /** Top-N whole-brain peaks from rawOutput. Optional for legacy jobs. */
+  peakMoments?: PeakMomentForRec[];
+  /** Seconds per TRIBE timestep (usually 1). Optional, defaults to 1. */
+  timestepSeconds?: number;
+}
+
+export function Recommendations({
+  regions,
+  trackedSeries,
+  peakMoments,
+  timestepSeconds,
+}: Props) {
+  const tips = deriveRecommendations({
+    regions,
+    trackedSeries: trackedSeries ?? {},
+    peakMoments: peakMoments ?? [],
+    timestepSeconds: timestepSeconds ?? 1,
+  });
 
   return (
     <Card>

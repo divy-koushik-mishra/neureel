@@ -21,8 +21,20 @@ def download_file(url: str, suffix: str) -> Path:
     return Path(tmp.name)
 
 
-def image_to_video(image_path: Path) -> Path:
-    """Still-image → 1 second, 25 fps mp4 so TRIBE (video-native) can consume it.
+# Minimum synthetic-video duration for still-image inputs. TRIBE predicts at
+# ~1 Hz, so a 1-second clip only gave us T=1 and a single static activation
+# map. 10 seconds yields T≈10 timesteps — enough for the Replay scrubber,
+# the per-region time series, and the peak-moment rules to do real work on
+# image uploads.
+IMAGE_VIDEO_DURATION_SECONDS = 10
+
+
+def image_to_video(
+    image_path: Path,
+    duration_seconds: int = IMAGE_VIDEO_DURATION_SECONDS,
+) -> Path:
+    """Still-image → looped N-second, 25 fps mp4 so TRIBE (video-native) can
+    consume it and produce a real time series.
 
     Requires `ffmpeg` on PATH. The Modal image installs it via apt.
     """
@@ -34,7 +46,7 @@ def image_to_video(image_path: Path) -> Path:
             "-loglevel", "error",
             "-loop", "1",
             "-i", str(image_path),
-            "-t", "1",
+            "-t", str(duration_seconds),
             "-r", "25",
             "-pix_fmt", "yuv420p",
             "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",

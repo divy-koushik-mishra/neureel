@@ -379,7 +379,7 @@ function Scrubber({
   }, [wholeBrain]);
 
   const handlePointer = useCallback(
-    (e: React.PointerEvent<SVGSVGElement>) => {
+    (e: React.PointerEvent<HTMLDivElement | SVGSVGElement>) => {
       const rect = svgRef.current?.getBoundingClientRect();
       if (!rect || T <= 0) return;
       const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));

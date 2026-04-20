@@ -35,6 +35,15 @@
 
   --brand: oklch(0.75 0.17 275);
   --brand-foreground: oklch(0.97 0 0);
+
+  /* fMRI signal palette — used for the chromatic rule, region plates,
+     activation sparks, and the bioluminescent "live" indicator. */
+  --signal-cold: oklch(0.55 0.18 250);
+  --signal-neutral: oklch(0.7 0.05 280);
+  --signal-hot: oklch(0.72 0.22 30);
+  --signal-bio: oklch(0.82 0.18 160);
+  --paper: oklch(0.09 0 0);
+  --rule: oklch(0.18 0 0);
 }
 
 @theme inline {
@@ -59,9 +68,16 @@
   --color-ring: var(--ring);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-signal-cold: var(--signal-cold);
+  --color-signal-neutral: var(--signal-neutral);
+  --color-signal-hot: var(--signal-hot);
+  --color-signal-bio: var(--signal-bio);
+  --color-paper: var(--paper);
+  --color-rule: var(--rule);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fraunces);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -79,6 +95,11 @@
     color: var(--foreground);
     font-family: var(--font-sans), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+  }
+  /* Belt-and-braces: keep blurred backdrops and oversized display type
+     from ever producing a horizontal scrollbar on mobile. */
+  body {
+    overflow-x: clip;
   }
 }
 
@@ -110,4 +131,85 @@
 
 .animate-brain-pulse {
   animation: brain-pulse 2.4s ease-in-out infinite;
+}
+
+/* --- Neurolab editorial landing ------------------------------------ */
+
+@keyframes specimen-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+.animate-specimen-pulse {
+  animation: specimen-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes signal-sweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+.animate-signal-sweep {
+  animation: signal-sweep 6s linear infinite;
+}
+
+@keyframes activation-bloom {
+  0%,
+  100% {
+    r: 6;
+    opacity: 0.45;
+  }
+  50% {
+    r: 14;
+    opacity: 0.95;
+  }
+}
+
+@keyframes cycle-activation {
+  0%,
+  18% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  22%,
+  38% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  42% {
+    opacity: 0;
+    transform: scale(1.1);
+  }
+}
+
+.font-display {
+  font-family: var(--font-fraunces), ui-serif, Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+.graph-paper {
+  background-image:
+    linear-gradient(to right, oklch(0.97 0 0 / 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.97 0 0 / 0.04) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+.signal-gradient {
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    var(--signal-cold) 20%,
+    var(--signal-neutral) 50%,
+    var(--signal-hot) 80%,
+    transparent 100%
+  );
 }

@@ -39,23 +39,44 @@ def prewarm_atlas() -> None:
 
 @lru_cache(maxsize=1)
 def _load_destrieux_raw() -> dict:
+    """Fetch + parse the Destrieux surface atlas, healing over a corrupt cache.
+
+    nilearn caches the atlas's `.annot` files under `$HOME/nilearn_data/…`.
+    If a previous fetch was killed mid-download, the cached file is a
+    truncated blob that `nibabel.freesurfer.io.read_annot` explodes on with
+    a bogus "cannot reshape array of size 1084 into shape (...)" error.
+    Nuking the cache dir and refetching fixes it. One retry is enough.
+    """
+    import shutil
+    from pathlib import Path
+
     from nilearn import datasets
 
-    atlas = datasets.fetch_atlas_surf_destrieux()
-    # `atlas` is a Bunch: labels (list[bytes|str]), map_left (np.int32 array),
-    # map_right (np.int32 array). `labels` may include a 'Unknown' / 'Medial_wall'
-    # entry at index 0 depending on nilearn version.
-    labels = [
-        s.decode("utf-8") if isinstance(s, (bytes, bytearray)) else str(s)
-        for s in atlas["labels"]
-    ]
-    map_left = np.asarray(atlas["map_left"], dtype=np.int32)
-    map_right = np.asarray(atlas["map_right"], dtype=np.int32)
-    return {
-        "labels": labels,
-        "map_left": map_left,
-        "map_right": map_right,
-    }
+    def _fetch_and_parse() -> dict:
+        atlas = datasets.fetch_atlas_surf_destrieux()
+        labels = [
+            s.decode("utf-8") if isinstance(s, (bytes, bytearray)) else str(s)
+            for s in atlas["labels"]
+        ]
+        return {
+            "labels": labels,
+            "map_left": np.asarray(atlas["map_left"], dtype=np.int32),
+            "map_right": np.asarray(atlas["map_right"], dtype=np.int32),
+        }
+
+    try:
+        return _fetch_and_parse()
+    except Exception as exc:
+        # Wipe any cache dirs that might hold a corrupt .annot and retry once.
+        print(f"[atlas] destrieux fetch/parse failed: {exc!r}; clearing cache and retrying")
+        for candidate in (
+            Path.home() / "nilearn_data" / "destrieux_surface",
+            Path("/root/nilearn_data/destrieux_surface"),
+        ):
+            if candidate.exists():
+                shutil.rmtree(candidate, ignore_errors=True)
+                print(f"[atlas] removed {candidate}")
+        return _fetch_and_parse()
 
 
 @lru_cache(maxsize=1)
